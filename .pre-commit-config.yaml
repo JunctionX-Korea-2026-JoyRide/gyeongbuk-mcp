@@ -1,0 +1,23 @@
+default_install_hook_types: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: format changed Python files with Ruff
+        entry: uv run --frozen ruff format
+        language: system
+        types: [python]
+
+      - id: ruff-lint
+        name: lint changed Python files with Ruff
+        entry: uv run --frozen ruff check
+        language: system
+        types: [python]
+
+      - id: mypy
+        name: type-check changed Python files with mypy
+        entry: uv run --frozen mypy
+        language: system
+        types: [python]
+
