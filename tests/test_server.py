@@ -18,6 +18,7 @@ def test_server_registers_accessibility_tools() -> None:
         "search_nearby_hospitals",
         "search_nearby_bus_stops",
         "search_nearby_markets",
+        "search_nearby_stores",
         "recommend_car_free_neighborhoods",
         "get_age_population_ratio",
         "get_safety_grade",

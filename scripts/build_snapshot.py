@@ -31,6 +31,7 @@ def main() -> None:
     print(f"bus_pattern_frequencies={summary.bus_pattern_frequencies}")
     print(f"bus_frequency_routes={summary.bus_frequency_routes}")
     print(f"markets={summary.markets}")
+    print(f"stores={summary.stores}")
     print(f"population_age_bands={summary.population_age_bands}")
     print(f"safety_grades={summary.safety_grades}")
 

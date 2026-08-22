@@ -13,6 +13,7 @@ from clients.local_data import (
     LocalHiraClient,
     LocalMarketClient,
     LocalSafetyClient,
+    LocalStoreClient,
     LocalTagoClient,
 )
 from clients.public_data import DataSourceError
@@ -20,6 +21,7 @@ from models.location import Coordinates
 from services.accessibility import AccessibilityService
 from services.demographics import DemographicsService
 from services.safety import SafetyService
+from services.stores import StoreService
 
 
 def _database(path: Path) -> None:
@@ -30,6 +32,7 @@ def _database(path: Path) -> None:
                 institution_id TEXT, name TEXT, address TEXT, phone TEXT,
                 institution_type TEXT, latitude REAL, longitude REAL
             );
+            CREATE TABLE metadata (key TEXT, value TEXT);
             CREATE TABLE hospital_departments (
                 institution_id TEXT, department_code TEXT, department_name TEXT
             );
@@ -64,6 +67,14 @@ def _database(path: Path) -> None:
                 name TEXT, market_type TEXT, road_address TEXT, lot_address TEXT,
                 opening_cycle TEXT, latitude REAL, longitude REAL, reference_date TEXT
             );
+            CREATE TABLE stores (
+                business_id TEXT, name TEXT, branch_name TEXT,
+                industry_large_code TEXT, industry_large_name TEXT,
+                industry_medium_code TEXT, industry_medium_name TEXT,
+                industry_small_code TEXT, industry_small_name TEXT,
+                standard_industry_code TEXT, standard_industry_name TEXT,
+                road_address TEXT, lot_address TEXT, latitude REAL, longitude REAL
+            );
             CREATE TABLE population_age_bands (
                 region_code TEXT, region_name TEXT, normalized_name TEXT, region_level TEXT,
                 as_of TEXT, age_from INTEGER, age_to INTEGER, population INTEGER,
@@ -90,6 +101,11 @@ def _database(path: Path) -> None:
             INSERT INTO markets VALUES
                 ('죽도시장', '상설장', '경상북도 포항시 북구', '', '매일',
                  36.036, 129.365, '2025-11-10');
+            INSERT INTO metadata VALUES ('stores_as_of', '2026-06-30');
+            INSERT INTO stores VALUES
+                ('B1', '죽도커피', '본점', 'I2', '음식점', 'I212', '비알코올음료점',
+                 'I21201', '커피전문점', 'I56112', '커피 전문점',
+                 '경상북도 포항시 북구 죽도시장길 1', '', 36.0361, 129.365);
             INSERT INTO population_age_bands VALUES
                 ('4711054500', '경상북도 포항시 북구 죽도동', '경상북도포항시북구죽도동',
                  'town', '202607', 70, 79, 1800, 12000);
@@ -114,6 +130,11 @@ def test_local_clients_support_accessibility_service(tmp_path: Path) -> None:
     hospitals = asyncio.run(service.search_hospitals(origin, 15, include_departments=True))
     buses = asyncio.run(service.search_bus_stops(origin, 10, 5, "weekday"))
     markets = asyncio.run(service.search_markets("포항시", origin, 15))
+    stores = asyncio.run(
+        StoreService(LocalStoreClient(database), file_mode=True).search_nearby(
+            origin, 1000, industry_code="I212", name_query="죽도 커피"
+        )
+    )
 
     assert hospitals.hospitals[0].departments == ["내과"]
     assert hospitals.source.as_of == "2026-06"
@@ -121,6 +142,8 @@ def test_local_clients_support_accessibility_service(tmp_path: Path) -> None:
     assert buses.stops[0].routes[0].frequency_basis == "conservative_interval_estimate"
     assert buses.source.source_name.startswith("국토교통부 정류장")
     assert markets.markets[0].name == "죽도시장"
+    assert stores.stores[0].business_id == "B1"
+    assert stores.source.as_of == "2026-06-30"
 
 
 def test_local_client_reports_missing_snapshot(tmp_path: Path) -> None:
