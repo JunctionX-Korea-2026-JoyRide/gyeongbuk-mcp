@@ -4,17 +4,35 @@ version = "0.1.0"
 description = "Location and public-data MCP server for Gyeongbuk"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "JoyRide team" }]
+keywords = ["mcp", "gyeongbuk", "public-data", "fastmcp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "fastmcp>=3.0.0,<4.0.0",
+    "httpx>=0.28.0,<1.0.0",
+    "openpyxl>=3.1.5,<4.0.0",
+    "pydantic>=2.11.0,<3.0.0",
+    "python-dotenv>=1.1.0,<2.0.0",
 ]
 
 [dependency-groups]
 dev = [
     "mypy>=1.15.0,<2.0.0",
+    "pip-audit>=2.9.0,<3.0.0",
     "pre-commit>=4.2.0,<5.0.0",
-    "pytest>=8.3.0,<9.0.0",
+    "pytest>=9.0.3,<10.0.0",
     "ruff>=0.11.0,<1.0.0",
+    "types-openpyxl>=3.1.5.20250602,<4.0.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/JunctionX-Korea-2026-JoyRide/gyeongbuk-mcp"
+Issues = "https://github.com/JunctionX-Korea-2026-JoyRide/gyeongbuk-mcp/issues"
 
 [tool.mypy]
 python_version = "3.12"
