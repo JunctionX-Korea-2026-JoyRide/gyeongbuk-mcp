@@ -22,6 +22,7 @@ from services.data_fetcher import (
     load_source_manifest,
     validate_referenced_pdfs,
     validate_source_bytes,
+    validate_source_file,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -75,6 +76,24 @@ def test_fetch_downloads_redirect_and_verifies_pdf(tmp_path: Path) -> None:
 
     assert asyncio.run(run()) == "downloaded"
     assert (tmp_path / source.filename).read_bytes() == content
+
+
+def test_fetch_streams_and_verifies_large_zip_path(tmp_path: Path) -> None:
+    content = _zip_bytes("stores.csv", b"header\nvalue")
+    source = _source(
+        content,
+        strategy="data_go_file",
+        source_format="zip",
+        filename="stores.zip",
+    )
+
+    async def run() -> str:
+        transport = httpx.MockTransport(lambda _: httpx.Response(200, content=content))
+        async with _client(transport) as client:
+            return await DataFetcher(client, tmp_path, (0,)).fetch(source)
+
+    assert asyncio.run(run()) == "downloaded"
+    assert (tmp_path / "stores.zip").read_bytes() == content
 
 
 def test_fetch_skips_existing_valid_file_without_network(tmp_path: Path) -> None:
@@ -267,12 +286,13 @@ def test_project_manifest_is_complete() -> None:
     validate_referenced_pdfs(
         manifest, PROJECT_ROOT / "data/reference/pohang_branch_pattern_frequencies.csv"
     )
-    assert len(manifest.sources) == 19
+    assert len(manifest.sources) == 20
     assert {source.source_id for source in manifest.sources} >= {
         "hira-hospitals",
         "bus-stops",
         "pohang-routes",
         "traditional-markets",
+        "commercial-businesses",
         "population-age",
         "safety-index",
     }
@@ -284,7 +304,7 @@ def test_project_manifest_matches_local_raw_files() -> None:
     if not all(path.is_file() for path in paths):
         pytest.skip("make data-fetch로 전체 원본을 받은 환경에서 실행합니다.")
     for source, path in zip(manifest.sources, paths, strict=True):
-        validate_source_bytes(source, path.read_bytes())
+        validate_source_file(source, path)
 
 
 def test_manifest_rejects_duplicate_ids(tmp_path: Path) -> None:

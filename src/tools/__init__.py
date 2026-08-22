@@ -8,6 +8,7 @@ from tools.accessibility import (
 )
 from tools.demographics import get_age_population_ratio
 from tools.safety import get_safety_grade
+from tools.stores import search_nearby_stores
 
 __all__ = [
     "get_age_population_ratio",
@@ -16,4 +17,5 @@ __all__ = [
     "search_nearby_bus_stops",
     "search_nearby_hospitals",
     "search_nearby_markets",
+    "search_nearby_stores",
 ]

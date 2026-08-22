@@ -60,6 +60,19 @@ license = "공식 제공 페이지 참조; 원본 재배포 안 함"
 attribution = "소상공인시장진흥공단"
 
 [[sources]]
+id = "commercial-businesses"
+name = "소상공인시장진흥공단 상가(상권)정보"
+landing_url = "https://www.data.go.kr/data/15083033/fileData.do"
+download_url = "https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=FILE_000000003695831&fileDetailSn=1"
+strategy = "data_go_file"
+filename = "store_businesses_20260630.zip"
+sha256 = "57aa361544108ff4fc73334f87d2ced61e41fe8638dd70bcd842930f865d2386"
+format = "zip"
+as_of = "2026-06-30"
+license = "이용허락범위 제한 없음"
+attribution = "소상공인시장진흥공단"
+
+[[sources]]
 id = "population-age"
 name = "행정안전부 전체 읍면동 연령별 인구현황"
 landing_url = "https://jumin.mois.go.kr/ageStatMonth.do"

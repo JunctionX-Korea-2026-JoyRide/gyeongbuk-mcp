@@ -160,6 +160,9 @@ class DataFetcher:
                 f"[{source.source_id}] 파일이 없습니다: {destination}\n{source.landing_url}"
             )
 
+        if source.strategy in {"direct", "data_go_file"} and source.source_format == "zip":
+            return await self._fetch_streamed_zip(source, destination)
+
         try:
             content = await self._download(source)
         except DataFetchError as exc:
@@ -183,6 +186,50 @@ class DataFetcher:
         finally:
             temporary_path.unlink(missing_ok=True)
         return "downloaded"
+
+    async def _fetch_streamed_zip(self, source: DataSource, destination: Path) -> FetchStatus:
+        """Stream a large ZIP to disk, validate it, and replace atomically."""
+
+        if source.download_url is None:
+            raise DataFetchError(f"[{source.source_id}] download_url이 필요합니다.")
+        self._output_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            prefix=f".{source.source_id}-",
+            suffix=".tmp",
+            dir=self._output_dir,
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+        try:
+            await self._stream_url_to_path(source.download_url, temporary_path)
+            validate_source_file(source, temporary_path)
+            temporary_path.replace(destination)
+        except DataFetchError as exc:
+            if str(exc).startswith(f"[{source.source_id}]"):
+                raise
+            raise DataFetchError(
+                f"[{source.source_id}] 다운로드에 실패했습니다: {source.landing_url}\n{exc}"
+            ) from exc
+        finally:
+            temporary_path.unlink(missing_ok=True)
+        return "downloaded"
+
+    async def _stream_url_to_path(self, url: str, path: Path) -> None:
+        last_error: Exception | None = None
+        for attempt, delay in enumerate(self._retry_delays, start=1):
+            try:
+                async with self._client.stream("GET", url) as response:
+                    response.raise_for_status()
+                    with path.open("wb") as stream:
+                        async for chunk in response.aiter_bytes():
+                            stream.write(chunk)
+                return
+            except (OSError, httpx.HTTPError, httpx.TimeoutException) as exc:
+                last_error = exc
+                if attempt == len(self._retry_delays):
+                    break
+                await asyncio.sleep(delay)
+        raise DataFetchError(f"공식 데이터 다운로드에 실패했습니다: {url}") from last_error
 
     async def _download(self, source: DataSource) -> bytes:
         if source.strategy in {"direct", "data_go_file"}:
@@ -308,10 +355,43 @@ def validate_source_file(source: DataSource, path: Path) -> None:
     """Validate one existing source file without exposing its contents."""
 
     try:
-        content = path.read_bytes()
+        actual_hash = _sha256_file(path)
     except OSError as exc:
         raise DataFetchError(f"[{source.source_id}] 파일을 읽을 수 없습니다: {path}") from exc
-    validate_source_bytes(source, content)
+    if actual_hash != source.sha256:
+        raise DataFetchError(
+            f"[{source.source_id}] SHA-256이 manifest와 다릅니다. "
+            f"원본 변경 여부를 검수하세요: {source.landing_url}"
+        )
+    if source.source_format == "pdf":
+        with path.open("rb") as stream:
+            if not stream.read(5).startswith(b"%PDF-"):
+                raise DataFetchError(f"[{source.source_id}] PDF 형식이 아닙니다.")
+        return
+    if source.source_format in {"zip", "hwpx"}:
+        try:
+            with ZipFile(path) as archive:
+                if archive.testzip() is not None:
+                    raise DataFetchError(f"[{source.source_id}] ZIP 내부 파일이 손상되었습니다.")
+                if (
+                    source.source_format == "hwpx"
+                    and "Contents/section0.xml" not in archive.namelist()
+                ):
+                    raise DataFetchError(f"[{source.source_id}] 지역안전지수 HWPX 형식이 아닙니다.")
+        except BadZipFile as exc:
+            raise DataFetchError(f"[{source.source_id}] ZIP 형식이 아닙니다.") from exc
+        return
+    if source.source_format == "csv":
+        try:
+            with path.open(encoding=source.encoding, newline="") as stream:
+                header = next(csv.reader(stream))
+        except (OSError, UnicodeDecodeError, StopIteration, csv.Error) as exc:
+            raise DataFetchError(f"[{source.source_id}] CSV를 읽을 수 없습니다.") from exc
+        missing = sorted(set(source.required_headers) - set(header))
+        if missing:
+            raise DataFetchError(
+                f"[{source.source_id}] CSV 필수 열이 없습니다: {', '.join(missing)}"
+            )
 
 
 def validate_source_bytes(source: DataSource, content: bytes) -> None:
@@ -351,6 +431,14 @@ def validate_source_bytes(source: DataSource, content: bytes) -> None:
             raise DataFetchError(
                 f"[{source.source_id}] CSV 필수 열이 없습니다: {', '.join(missing)}"
             )
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _parse_source(raw: object) -> DataSource:

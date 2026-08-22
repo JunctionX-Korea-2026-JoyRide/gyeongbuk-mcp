@@ -17,6 +17,7 @@ from models.accessibility import (
 from models.demographics import AgePopulationRatioResult
 from models.location import Coordinates, DataSourceMetadata
 from models.safety import SafetyGradeResult
+from models.stores import Store, StoreSearchResult
 
 
 @pytest.mark.parametrize(
@@ -94,6 +95,36 @@ from models.safety import SafetyGradeResult
             ),
         ),
         (MarketSearchResult, ("markets", "source", "warnings")),
+        (
+            Store,
+            (
+                "business_id",
+                "name",
+                "branch_name",
+                "industry_large_code",
+                "industry_large_name",
+                "industry_medium_code",
+                "industry_medium_name",
+                "industry_small_code",
+                "industry_small_name",
+                "standard_industry_code",
+                "standard_industry_name",
+                "address",
+                "coordinates",
+                "distance_m",
+                "estimated_walk_minutes",
+            ),
+        ),
+        (
+            StoreSearchResult,
+            (
+                "stores",
+                "radius_m",
+                "walking_speed_m_per_minute",
+                "source",
+                "warnings",
+            ),
+        ),
         (
             NeighborhoodRecommendation,
             (

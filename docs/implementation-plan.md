@@ -14,13 +14,13 @@
 - `src/services/geo.py`: Haversine 거리와 보행시간 환산
 - `src/services/accessibility.py`: 병원·정류장·시장 검색과 정규화
 - `src/services/recommendations.py`: 시장 중심 후보 생성, 필수 조건, 100점 랭킹
-- `src/tools/`: 구조화된 FastMCP 도구 6개와 입력 검증
+- `src/tools/`: 구조화된 FastMCP 도구 7개와 입력 검증
 - `data/reference/pohang_bus_frequencies.csv`: 포항시 공식 시간표를 구조화한 보조표
 - `data/reference/pohang_branch_pattern_frequencies.csv`: 지선 PDF를 정확한 노선 변형에
   연결한 검수표
 - `tests/`: API 파서와 파일 클라이언트, 오류, 배차 계산, 거리 필터, 추천, 도구 등록 검증
 
-기본 `DATA_MODE=file`에서는 인증키나 외부 연결 없이 여섯 도구가 동작합니다. DB가 없으면
+기본 `DATA_MODE=file`에서는 인증키나 외부 연결 없이 일곱 도구가 동작합니다. DB가 없으면
 `make data`를 실행하라는 안전한 오류를 반환합니다. `DATA_MODE=api`는 비교·비상용으로 남겨
 두었습니다.
 
@@ -32,8 +32,17 @@
 - 포항 노선 패턴 196개, 패턴–정류장 연결 20,393건
 - 배차 판정 가능한 포항 노선 51개(간선 22개, 지선 29개)
 - 경북 전통시장 132곳
+- 경북 상가업소 144,967곳
 - 경북 행정구역·연령 구간 3,949건
 - 경북 시도·시군·6개 분야 지역안전등급 138건
+
+## 완료: 상가업소 검색 도구
+
+- 소상공인시장진흥공단 2026-06-30 전국 상가(상권)정보 ZIP에서 경북 CSV를 검증·적재한다.
+- `search_nearby_stores`가 2km 안의 업소를 3단계 업종 코드·명칭과 상호명으로 검색한다.
+- 파일 모드와 공식 `storeListInRadius` API 모드가 같은 구조화 출력을 반환한다.
+- 전국 ZIP은 스트리밍 다운로드하며 SHA-256과 ZIP CRC를 확인한 뒤 원자적으로 교체한다.
+- 상가업소는 기존 시장 중심 생활권 추천 점수에 포함하지 않는다.
 
 ## 다음: 파일 갱신 자동화와 운영 안정화
 

@@ -83,6 +83,36 @@
 | `estimated_walk_minutes` | integer | 보행 추정시간(분), 0 이상 |
 | `reference_date` | string \| null | 원본 데이터 기준일. 제공될 때 `YYYY-MM-DD` 형식 |
 
+## `Store`
+
+| 필드 | JSON 형식 | 제약·의미 |
+| --- | --- | --- |
+| `business_id` | string | 원본 상가업소번호. 분류 개편 시 변경될 수 있음 |
+| `name` | string | 상호명 |
+| `branch_name` | string \| null | 지점명 |
+| `industry_large_code` | string | 2자리 상권업종 대분류 코드 |
+| `industry_large_name` | string | 상권업종 대분류명 |
+| `industry_medium_code` | string | 4자리 상권업종 중분류 코드 |
+| `industry_medium_name` | string | 상권업종 중분류명 |
+| `industry_small_code` | string | 6자리 상권업종 소분류 코드 |
+| `industry_small_name` | string | 상권업종 소분류명 |
+| `standard_industry_code` | string \| null | 한국표준산업분류 코드 |
+| `standard_industry_name` | string \| null | 한국표준산업분류명 |
+| `address` | string | 도로명주소, 없으면 지번주소 |
+| `coordinates` | [`Coordinates`](#coordinates) | 업소 대표 좌표 |
+| `distance_m` | number | 기준점과의 직선거리(m), 0 이상 |
+| `estimated_walk_minutes` | integer | 보행 추정시간(분), 0 이상 |
+
+## `StoreSearchResult`
+
+| 필드 | JSON 형식 | 제약·의미 |
+| --- | --- | --- |
+| `stores` | array of [`Store`](#store) | 조건을 만족하는 업소. 거리·상호·업소번호 순 |
+| `radius_m` | integer | 검색 반경, 1~2000m |
+| `walking_speed_m_per_minute` | number | 도보시간 계산에 사용한 보행속도 |
+| `source` | [`DataSourceMetadata`](#datasourcemetadata) | 원본, 기준일과 추정 방법 |
+| `warnings` | list[string] | 영업 상태·거리·식별자 한계에 관한 경고 |
+
 ## `NeighborhoodRecommendation`
 
 | 필드 | JSON 형식 | 제약·의미 |

@@ -14,6 +14,7 @@ from models.accessibility import (
 from models.demographics import AgePopulationRatioResult
 from models.location import Coordinates, DataSourceMetadata
 from models.safety import SafetyCategory, SafetyGradeResult
+from models.stores import Store, StoreSearchResult
 
 __all__ = [
     "AgePopulationRatioResult",
@@ -29,5 +30,7 @@ __all__ = [
     "NeighborhoodRecommendationResult",
     "SafetyCategory",
     "SafetyGradeResult",
+    "Store",
+    "StoreSearchResult",
     "TraditionalMarket",
 ]
