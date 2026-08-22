@@ -11,8 +11,10 @@
 | [`get_age_population_ratio`](tools/get-age-population-ratio.md) | 행정구역별 연령대 인구 비율 | 구현 |
 | [`get_safety_grade`](tools/get-safety-grade.md) | 시도·시군별 분야별 지역안전등급 | 구현 |
 
-전체 데이터 출처와 선택 이유는 [데이터 출처](data-sources.md), 구현 순서와 완료 조건은
-[구현 계획](implementation-plan.md)을 참고합니다.
+각 도구의 최상위 출력은 해당 도구 문서에, 재사용되는 중첩 객체의 필드·형식은
+[출력 모델 계약](output-models.md)에 정리했습니다. 전체 데이터 출처와 선택 이유는
+[데이터 출처](data-sources.md), 구현 순서와 완료 조건은 [구현 계획](implementation-plan.md)을
+참고합니다.
 
 ## 공통 계산 규칙
 

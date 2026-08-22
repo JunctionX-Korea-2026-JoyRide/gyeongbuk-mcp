@@ -40,9 +40,39 @@
 
 필수 조건은 점수와 별개입니다. 점수가 높아도 현장 검증을 대체하지 않습니다.
 
-## 출력 활용
+## 출력
 
-각 후보에는 순위, 점수, 중심 좌표, 가장 가까운 시장·병원, 조건을 통과한 정류장 최대
+| 필드 | JSON 형식 | 설명 |
+| --- | --- | --- |
+| `region` | string | 평가에 사용한 지역 검색어 |
+| `recommendations` | array of [`NeighborhoodRecommendation`](../output-models.md#neighborhoodrecommendation) | 점수 내림차순, 동점이면 후보명 오름차순인 추천 결과 |
+| `criteria` | object | 실제 적용한 후보 평가 조건 |
+| `warnings` | list[string] | 모든 후보에 공통인 데이터·해석 경고 |
+
+`criteria`에는 `hospital_max_walk_minutes`, `bus_max_walk_minutes`,
+`minimum_daily_bus_trips`, `service_day`, `market_requirement`, `candidate_limit`가
+포함됩니다. 필수 조건을 모두 만족한 후보가 없으면 `recommendations`는 `[]`입니다.
+
+```json
+{
+  "region": "포항시",
+  "recommendations": [],
+  "criteria": {
+    "hospital_max_walk_minutes": 15,
+    "bus_max_walk_minutes": 10,
+    "minimum_daily_bus_trips": 5,
+    "service_day": "weekday",
+    "market_requirement": "registered_market_anchor",
+    "candidate_limit": 20
+  },
+  "warnings": [
+    "추천 결과가 없어도 입력 지역의 주거 부적합을 뜻하지 않습니다.",
+    "보행시간은 실제 경로가 아닌 직선거리 추정값입니다."
+  ]
+}
+```
+
+각 추천 객체에는 순위, 점수, 중심 좌표, 가장 가까운 시장·병원, 조건을 통과한 정류장 최대
 3곳, 추천 이유와 주의사항이 포함됩니다. 후속 답변에서는 먼저 후보를 제시하고 다음을
 명시해야 합니다.
 

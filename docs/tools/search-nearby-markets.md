@@ -13,7 +13,39 @@
 
 ## 출력
 
-시장명, 주소, 유형, 개설주기, 대표 좌표, 거리, 보행 추정시간, 데이터 기준일자를 반환합니다.
+| 필드 | JSON 형식 | 설명 |
+| --- | --- | --- |
+| `markets` | array of [`TraditionalMarket`](../output-models.md#traditionalmarket) | 조건을 만족하는 시장. `distance_m` 오름차순 |
+| `source` | [`DataSourceMetadata`](../output-models.md#datasourcemetadata) | 원본과 기준일 |
+| `warnings` | list[string] | 대표 좌표와 등록시장 범위에 관한 경고 |
+
+조건을 만족하는 시장이 없으면 `markets`는 `[]`입니다. 다음은 형식을 보여주기 위한 예시이며
+실제 값은 원본 갱신에 따라 달라집니다.
+
+```json
+{
+  "markets": [
+    {
+      "name": "예시시장",
+      "address": "경상북도 포항시 북구 예시로 10",
+      "market_type": "상설시장",
+      "opening_cycle": "매일",
+      "coordinates": {"latitude": 36.035, "longitude": 129.366},
+      "distance_m": 250.7,
+      "estimated_walk_minutes": 5,
+      "reference_date": "2025-11-10"
+    }
+  ],
+  "source": {
+    "source_name": "전국전통시장표준데이터",
+    "source_url": "https://www.data.go.kr/",
+    "as_of": "2025-11-10",
+    "is_estimated": true,
+    "estimation_method": "Haversine 직선거리와 분당 보행속도"
+  },
+  "warnings": ["시장은 면적이 아닌 하나의 대표 좌표로 계산합니다."]
+}
+```
 
 ## 데이터와 계산
 
