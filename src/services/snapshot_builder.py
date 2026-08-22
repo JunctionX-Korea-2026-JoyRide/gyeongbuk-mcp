@@ -11,7 +11,7 @@ import tempfile
 import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from io import BytesIO
+from io import BytesIO, TextIOWrapper
 from pathlib import Path
 from xml.etree import ElementTree
 from zipfile import ZipFile
@@ -35,6 +35,7 @@ class BuildSummary:
     bus_pattern_frequencies: int
     bus_frequency_routes: int
     markets: int
+    stores: int
     population_age_bands: int
     safety_grades: int
 
@@ -51,6 +52,7 @@ def build_snapshot(raw_dir: Path, reference_dir: Path, output_path: Path) -> Bui
     bus_stop_csv = _find_csv(raw_dir, {"정류장번호", "정류장명", "도시코드"})
     pohang_route_csv = _find_csv(raw_dir, {"노선명", "승강장명칭", "운행시간"})
     market_csv = _find_csv(raw_dir, {"시장명", "시장유형", "소재지도로명주소"})
+    store_zip = _find_store_zip(raw_dir)
     population_csv = _find_population_csv(raw_dir)
     safety_hwpx = _find_safety_hwpx(raw_dir)
     frequency_csv = reference_dir / "pohang_bus_frequencies.csv"
@@ -81,6 +83,7 @@ def build_snapshot(raw_dir: Path, reference_dir: Path, output_path: Path) -> Bui
             )
             bus_frequency_routes = _validate_bus_frequency_coverage(connection)
             markets = _load_markets(connection, market_csv)
+            stores = _load_stores(connection, store_zip)
             population_age_bands = _load_population_age_bands(connection, population_csv)
             safety_grades = _load_safety_grades(connection, safety_hwpx)
             _write_metadata(
@@ -90,6 +93,7 @@ def build_snapshot(raw_dir: Path, reference_dir: Path, output_path: Path) -> Bui
                     bus_stop_csv,
                     pohang_route_csv,
                     market_csv,
+                    store_zip,
                     frequency_csv,
                     pattern_frequency_csv,
                     population_csv,
@@ -98,6 +102,7 @@ def build_snapshot(raw_dir: Path, reference_dir: Path, output_path: Path) -> Bui
                         raw_dir / name for name in _referenced_pdf_names(pattern_frequency_csv)
                     ),
                 ],
+                {"stores_as_of": "2026-06-30"},
             )
             connection.commit()
         temporary_path.replace(output_path)
@@ -117,6 +122,7 @@ def build_snapshot(raw_dir: Path, reference_dir: Path, output_path: Path) -> Bui
         bus_pattern_frequencies=bus_pattern_frequencies,
         bus_frequency_routes=bus_frequency_routes,
         markets=markets,
+        stores=stores,
         population_age_bands=population_age_bands,
         safety_grades=safety_grades,
     )
@@ -228,6 +234,23 @@ def _create_schema(connection: sqlite3.Connection) -> None:
             reference_date TEXT,
             UNIQUE (name, road_address, lot_address)
         );
+        CREATE TABLE stores (
+            business_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            branch_name TEXT,
+            industry_large_code TEXT NOT NULL,
+            industry_large_name TEXT NOT NULL,
+            industry_medium_code TEXT NOT NULL,
+            industry_medium_name TEXT NOT NULL,
+            industry_small_code TEXT NOT NULL,
+            industry_small_name TEXT NOT NULL,
+            standard_industry_code TEXT,
+            standard_industry_name TEXT,
+            road_address TEXT,
+            lot_address TEXT,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL
+        );
         CREATE TABLE population_age_bands (
             region_code TEXT NOT NULL,
             region_name TEXT NOT NULL,
@@ -261,6 +284,10 @@ def _create_schema(connection: sqlite3.Connection) -> None:
         CREATE INDEX bus_pattern_frequencies_pattern ON bus_pattern_frequencies(pattern_id);
         CREATE INDEX markets_location ON markets(latitude, longitude);
         CREATE INDEX markets_addresses ON markets(road_address, lot_address);
+        CREATE INDEX stores_location ON stores(latitude, longitude);
+        CREATE INDEX stores_large_industry ON stores(industry_large_code);
+        CREATE INDEX stores_medium_industry ON stores(industry_medium_code);
+        CREATE INDEX stores_small_industry ON stores(industry_small_code);
         CREATE INDEX population_region_name ON population_age_bands(normalized_name, as_of);
         CREATE INDEX safety_region_name ON safety_grades(normalized_name, publication_year);
         """
@@ -622,6 +649,110 @@ def _load_markets(connection: sqlite3.Connection, path: Path) -> int:
     return int(connection.execute("SELECT COUNT(*) FROM markets").fetchone()[0])
 
 
+def _load_stores(connection: sqlite3.Connection, path: Path) -> int:
+    """Load the single Gyeongbuk member from the official national store ZIP."""
+
+    required_headers = {
+        "상가업소번호",
+        "상호명",
+        "지점명",
+        "상권업종대분류코드",
+        "상권업종대분류명",
+        "상권업종중분류코드",
+        "상권업종중분류명",
+        "상권업종소분류코드",
+        "상권업종소분류명",
+        "표준산업분류코드",
+        "표준산업분류명",
+        "시도명",
+        "지번주소",
+        "도로명주소",
+        "경도",
+        "위도",
+    }
+    insert_sql = "INSERT INTO stores VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    count = 0
+    with ZipFile(path) as archive:
+        member_name = _store_member_name(archive)
+        with (
+            archive.open(member_name) as raw_stream,
+            TextIOWrapper(raw_stream, encoding="utf-8-sig", newline="") as stream,
+        ):
+            reader = csv.DictReader(stream)
+            if reader.fieldnames is None:
+                raise ValueError("경북 상가업소 CSV에 헤더가 없습니다.")
+            missing = sorted(required_headers - set(reader.fieldnames))
+            if missing:
+                raise ValueError(f"경북 상가업소 CSV 필수 열이 없습니다: {', '.join(missing)}")
+
+            batch: list[tuple[object, ...]] = []
+            for row in reader:
+                if row["시도명"].strip() != "경상북도":
+                    raise ValueError("경북 상가업소 CSV에 다른 시도 데이터가 포함되어 있습니다.")
+                latitude = _float(row["위도"])
+                longitude = _float(row["경도"])
+                address = row["도로명주소"].strip() or row["지번주소"].strip()
+                required_values = (
+                    row["상가업소번호"].strip(),
+                    row["상호명"].strip(),
+                    row["상권업종대분류코드"].strip(),
+                    row["상권업종대분류명"].strip(),
+                    row["상권업종중분류코드"].strip(),
+                    row["상권업종중분류명"].strip(),
+                    row["상권업종소분류코드"].strip(),
+                    row["상권업종소분류명"].strip(),
+                )
+                if (
+                    latitude is None
+                    or longitude is None
+                    or not math.isfinite(latitude)
+                    or not math.isfinite(longitude)
+                    or not 33.0 <= latitude <= 39.5
+                    or not 124.0 <= longitude <= 132.0
+                    or not address
+                    or not all(required_values)
+                ):
+                    continue
+                batch.append(
+                    (
+                        required_values[0],
+                        required_values[1],
+                        row["지점명"].strip() or None,
+                        required_values[2].upper(),
+                        required_values[3],
+                        required_values[4].upper(),
+                        required_values[5],
+                        required_values[6].upper(),
+                        required_values[7],
+                        row["표준산업분류코드"].strip() or None,
+                        row["표준산업분류명"].strip() or None,
+                        row["도로명주소"].strip() or None,
+                        row["지번주소"].strip() or None,
+                        latitude,
+                        longitude,
+                    )
+                )
+                if len(batch) >= 5000:
+                    count += _insert_store_batch(connection, insert_sql, batch)
+                    batch.clear()
+            count += _insert_store_batch(connection, insert_sql, batch)
+    return count
+
+
+def _insert_store_batch(
+    connection: sqlite3.Connection,
+    insert_sql: str,
+    rows: list[tuple[object, ...]],
+) -> int:
+    if not rows:
+        return 0
+    try:
+        connection.executemany(insert_sql, rows)
+    except sqlite3.IntegrityError as exc:
+        raise ValueError("경북 상가업소 CSV에 중복 상가업소번호가 있습니다.") from exc
+    return len(rows)
+
+
 def _load_population_age_bands(connection: sqlite3.Connection, path: Path) -> int:
     rows: list[tuple[object, ...]] = []
     with path.open(encoding="cp949", newline="") as stream:
@@ -770,13 +901,19 @@ def _safety_comparison_group(district: str) -> str:
     return "구"
 
 
-def _write_metadata(connection: sqlite3.Connection, paths: list[Path]) -> None:
+def _write_metadata(
+    connection: sqlite3.Connection,
+    paths: list[Path],
+    extra: dict[str, str] | None = None,
+) -> None:
     metadata = {
         "built_at": datetime.now(UTC).isoformat(),
-        "schema_version": "3",
+        "schema_version": "4",
     }
     for path in paths:
         metadata[f"sha256:{path.name}"] = _sha256(path)
+    if extra:
+        metadata.update(extra)
     connection.executemany("INSERT INTO metadata VALUES (?, ?)", sorted(metadata.items()))
 
 
@@ -789,6 +926,33 @@ def _find_hira_zip(raw_dir: Path) -> Path:
             ):
                 return path
     raise FileNotFoundError("병원정보와 진료과목 XLSX를 포함한 HIRA ZIP을 찾지 못했습니다.")
+
+
+def _find_store_zip(raw_dir: Path) -> Path:
+    matches: list[Path] = []
+    for path in sorted(raw_dir.glob("*.zip")):
+        with ZipFile(path) as archive:
+            try:
+                _store_member_name(archive)
+            except FileNotFoundError:
+                continue
+            matches.append(path)
+    if len(matches) != 1:
+        raise FileNotFoundError(
+            "경북 CSV 하나를 포함한 상가(상권)정보 ZIP이 정확히 하나 필요합니다."
+        )
+    return matches[0]
+
+
+def _store_member_name(archive: ZipFile) -> str:
+    matches = [
+        name
+        for name in archive.namelist()
+        if name.endswith(".csv") and "상가(상권)정보" in name and "_경북_" in name
+    ]
+    if len(matches) != 1:
+        raise FileNotFoundError("상가(상권)정보 ZIP에서 경북 CSV를 하나만 찾지 못했습니다.")
+    return matches[0]
 
 
 def _find_csv(raw_dir: Path, required_columns: set[str]) -> Path:

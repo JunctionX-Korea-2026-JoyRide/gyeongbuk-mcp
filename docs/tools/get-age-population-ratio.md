@@ -17,10 +17,44 @@
 
 ## 출력
 
-- 행정구역 코드·명칭과 행정단위
-- 연령 시작·끝, 해당 연령 인구수, 전체 인구수, 비율(%)
-- 기준년월과 공식 원본 메타데이터
-- 주민등록인구·행정동 기준에 관한 경고
+| 필드 | JSON 형식 | 설명 |
+| --- | --- | --- |
+| `region_code` | string | 조회된 행정구역 코드 |
+| `region_name` | string | 조회된 전체 행정구역명 |
+| `region_level` | string | 시도·시군구·읍면동 등 행정단위 |
+| `age_from` | integer | 계산에 포함한 최소 만 나이 |
+| `age_to` | integer | 계산에 포함한 최대 만 나이 |
+| `age_population` | integer | 해당 연령대 주민등록인구, 0 이상 |
+| `total_population` | integer | 해당 행정구역 전체 주민등록인구, 0 이상 |
+| `ratio_percent` | number | 전체 인구 대비 비율(%), 0~100 |
+| `as_of` | string | 기준년월, `YYYYMM` 형식 |
+| `source` | [`DataSourceMetadata`](../output-models.md#datasourcemetadata) | 공식 원본과 기준월 |
+| `warnings` | list[string] | 주민등록인구·행정동 기준에 관한 경고 |
+
+이 도구는 한 행정구역의 단일 결과 객체를 반환합니다. 지역이 없거나 둘 이상으로 해석되면
+빈 객체가 아니라 MCP 도구 오류를 반환합니다. 다음은 형식을 보여주기 위한 예시입니다.
+
+```json
+{
+  "region_code": "4711054500",
+  "region_name": "경상북도 포항시 북구 죽도동",
+  "region_level": "읍면동",
+  "age_from": 70,
+  "age_to": 79,
+  "age_population": 1234,
+  "total_population": 20123,
+  "ratio_percent": 6.13,
+  "as_of": "202607",
+  "source": {
+    "source_name": "행정안전부 주민등록 인구통계",
+    "source_url": "https://jumin.mois.go.kr/ageStatMonth.do",
+    "as_of": "202607",
+    "is_estimated": false,
+    "estimation_method": null
+  },
+  "warnings": ["주민등록인구는 실제 상주인구와 다를 수 있습니다."]
+}
+```
 
 ## 데이터와 한계
 

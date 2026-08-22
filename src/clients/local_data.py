@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import re
 import sqlite3
 import unicodedata
@@ -169,6 +170,62 @@ class LocalMarketClient:
             "WHERE road_address LIKE ? OR lot_address LIKE ? ORDER BY name",
             (f"%{region}%", f"%{region}%"),
         )
+
+
+class LocalStoreClient:
+    """Expose downloaded commercial-business rows through the store contract."""
+
+    def __init__(self, database_path: Path) -> None:
+        self._database = _LocalDatabase(database_path)
+
+    async def search_radius(
+        self,
+        latitude: float,
+        longitude: float,
+        radius_m: int,
+        industry_code: str | None = None,
+        rows: int = 1000,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """Return businesses from a coordinate bounding box and source date."""
+
+        del rows
+        latitude_delta = radius_m / 111_000
+        longitude_delta = radius_m / (111_000 * math.cos(math.radians(latitude)))
+        industry_clause = ""
+        parameters: tuple[object, ...] = (
+            latitude - latitude_delta,
+            latitude + latitude_delta,
+            longitude - longitude_delta,
+            longitude + longitude_delta,
+        )
+        if industry_code:
+            industry_column = {
+                2: "industry_large_code",
+                4: "industry_medium_code",
+                6: "industry_small_code",
+            }.get(len(industry_code))
+            if industry_column is None:
+                raise DataSourceError(
+                    "industry_code는 영문·숫자 2자리, 4자리 또는 6자리여야 합니다."
+                )
+            industry_clause = f" AND {industry_column} = ?"
+            parameters = (*parameters, industry_code.upper())
+        businesses = await self._database.rows(
+            "SELECT business_id AS bizesId, name AS bizesNm, branch_name AS brchNm, "
+            "industry_large_code AS indsLclsCd, industry_large_name AS indsLclsNm, "
+            "industry_medium_code AS indsMclsCd, industry_medium_name AS indsMclsNm, "
+            "industry_small_code AS indsSclsCd, industry_small_name AS indsSclsNm, "
+            "standard_industry_code AS ksicCd, standard_industry_name AS ksicNm, "
+            "road_address AS rdnmAdr, lot_address AS lnoAdr, longitude AS lon, latitude AS lat "
+            "FROM stores WHERE latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?"
+            f"{industry_clause}",
+            parameters,
+        )
+        metadata = await self._database.rows(
+            "SELECT value FROM metadata WHERE key = 'stores_as_of'"
+        )
+        as_of = str(metadata[0]["value"]) if metadata else None
+        return businesses, as_of
 
 
 class LocalDemographicsClient:

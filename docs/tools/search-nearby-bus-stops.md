@@ -15,13 +15,59 @@
 
 ## 출력
 
-정류장 ID·명칭·좌표·거리·보행 추정시간, 경유 노선별 첫차·막차·배차간격·운행 횟수,
-`frequency_basis`와 정류장 전체 횟수를 반환합니다. 시간표가 없는 정류장은 최소 횟수 조건을
-판정할 수 없어 결과에서 제외합니다. `frequency_basis`는 다음 중 하나입니다.
+| 필드 | JSON 형식 | 설명 |
+| --- | --- | --- |
+| `stops` | array of [`BusStopAccessibility`](../output-models.md#busstopaccessibility) | 조건을 만족하는 정류장. 거리 오름차순, 같은 거리면 일 운행 횟수 내림차순 |
+| `service_day` | string | 적용한 `weekday`, `saturday`, `sunday` 중 하나 |
+| `minimum_daily_trips` | integer | 적용한 정류장 최소 일 운행 횟수 |
+| `source` | [`DataSourceMetadata`](../output-models.md#datasourcemetadata) | 정류장·노선·시간표 출처와 추정 방법 |
+| `warnings` | list[string] | 배차 추정 및 데이터 한계에 관한 경고 |
+
+시간표가 없는 정류장은 최소 횟수 조건을 판정할 수 없어 결과에서 제외합니다. 조건을 만족하는
+정류장이 없으면 `stops`는 `[]`입니다. 노선의 `frequency_basis`는 다음 중 하나입니다.
 
 - `published_trip_count`: 게시 시간표에서 검수한 명시 운행횟수
 - `conservative_interval_estimate`: 첫차·막차와 최대 배차간격으로 계산한 보수적 하한
 - `api_summary`: `DATA_MODE=api`에서 TAGO 요약값을 사용한 결과
+
+다음은 형식을 보여주기 위한 예시이며 실제 값은 원본 갱신에 따라 달라집니다.
+
+```json
+{
+  "stops": [
+    {
+      "stop_id": "example-stop-001",
+      "name": "죽도시장",
+      "coordinates": {"latitude": 36.034, "longitude": 129.365},
+      "distance_m": 180.2,
+      "estimated_walk_minutes": 4,
+      "estimated_daily_trips": 12,
+      "routes": [
+        {
+          "route_id": "example-route-001",
+          "route_number": "206",
+          "route_type": "간선",
+          "daily_trips": 12,
+          "first_bus": "06:00",
+          "last_bus": "22:00",
+          "interval_minutes": 90,
+          "frequency_basis": "conservative_interval_estimate"
+        }
+      ]
+    }
+  ],
+  "service_day": "weekday",
+  "minimum_daily_trips": 5,
+  "source": {
+    "source_name": "전국 버스정류장 및 포항시 노선·시간표",
+    "source_url": "https://www.pohang.go.kr/",
+    "as_of": "2026-08-01",
+    "is_estimated": true,
+    "estimation_method": "게시 운행횟수 또는 첫차·막차·최대 배차간격의 보수적 하한"
+  },
+  "warnings": ["운행 횟수는 게시 시간표를 바탕으로 한 추정값입니다."]
+}
+```
 
 ## 데이터와 계산
 

@@ -145,6 +145,7 @@ def test_snapshot_build_preserves_existing_database_on_pattern_validation_failur
     output.write_bytes(b"previous database")
 
     monkeypatch.setattr(snapshot_builder, "_find_hira_zip", lambda _: placeholder)
+    monkeypatch.setattr(snapshot_builder, "_find_store_zip", lambda _: placeholder)
     monkeypatch.setattr(snapshot_builder, "_find_csv", lambda *_: placeholder)
     monkeypatch.setattr(snapshot_builder, "_find_population_csv", lambda _: placeholder)
     monkeypatch.setattr(snapshot_builder, "_find_safety_hwpx", lambda _: placeholder)
@@ -152,6 +153,7 @@ def test_snapshot_build_preserves_existing_database_on_pattern_validation_failur
     monkeypatch.setattr(snapshot_builder, "_load_bus_stops", lambda *_: 0)
     monkeypatch.setattr(snapshot_builder, "_load_bus_frequencies", lambda *_: 0)
     monkeypatch.setattr(snapshot_builder, "_load_markets", lambda *_: 0)
+    monkeypatch.setattr(snapshot_builder, "_load_stores", lambda *_: 0)
     monkeypatch.setattr(snapshot_builder, "_load_population_age_bands", lambda *_: 0)
     monkeypatch.setattr(snapshot_builder, "_load_safety_grades", lambda *_: 0)
 
