@@ -2,7 +2,22 @@
 
 from fastmcp import FastMCP
 
+from tools import (
+    get_age_population_ratio,
+    get_safety_grade,
+    recommend_car_free_neighborhoods,
+    search_nearby_bus_stops,
+    search_nearby_hospitals,
+    search_nearby_markets,
+)
+
 mcp = FastMCP(name="Gyeongbuk MCP")
+mcp.tool(search_nearby_hospitals)
+mcp.tool(search_nearby_bus_stops)
+mcp.tool(search_nearby_markets)
+mcp.tool(recommend_car_free_neighborhoods)
+mcp.tool(get_age_population_ratio)
+mcp.tool(get_safety_grade)
 
 
 if __name__ == "__main__":
